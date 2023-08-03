@@ -279,6 +279,8 @@ void setup()
 
 void loop()
 {
+    // Update display info
+    updateDisplay();
     switch (state)
     {
     case STATE_CONNECTING_TO_WIFI:
@@ -387,9 +389,6 @@ void loop()
 
     // Handle web interface
     server.handleClient();
-
-    // Update display info
-    testdrawchar();
 }
 
 // Handle the change of states in the program
@@ -1016,25 +1015,106 @@ String getSSID()
 //     secLoop++;
 // }
 
-void testdrawchar(void)
+void updateDisplay(void)
 {
-    display.clearDisplay();
+    int u_bat = map(analogRead(A0), 0, 1024, 0, 510); // update battery voltage
+    int w_rssi = WiFi.RSSI();
 
+    display.clearDisplay();
     display.setTextSize(1);              // Normal 1:1 pixel scale
     display.setTextColor(SSD1306_WHITE); // Draw white text
     display.setCursor(0, 0);             // Start at top-left corner
     display.cp437(true);                 // Use full 256 char 'Code Page 437' font
 
-    // Not all the characters will fit on the display. This is normal.
-    // Library will draw what it can and the rest will be clipped.
-    for (int16_t i = 0; i < 256; i++)
+    // Top Bar
+    // RSSI indicator
+    int rssi_icon_x = 0; // start x cordinate of signal streagngth indicator
+    int rssi_icon_y = 0; // same for y
+    display.drawRect(rssi_icon_x + 2, rssi_icon_y + 8, 4, 4, SSD1306_WHITE);
+    display.drawRect(rssi_icon_x + 7, rssi_icon_y + 6, 4, 6, SSD1306_WHITE);
+    display.drawRect(rssi_icon_x + 12, rssi_icon_y + 4, 4, 8, SSD1306_WHITE);
+    display.drawRect(rssi_icon_x + 17, rssi_icon_y + 2, 4, 10, SSD1306_WHITE);
+
+    if (w_rssi <= 0) // or its not connected
     {
-        if (i == '\n')
-            display.write(' ');
+        if (w_rssi >= -80)
+        {
+            display.fillRect(rssi_icon_x + 2, rssi_icon_y + 8, 4, 4, SSD1306_WHITE);
+        }
+        if (w_rssi >= -70)
+        {
+            display.fillRect(rssi_icon_x + 7, rssi_icon_y + 6, 4, 6, SSD1306_WHITE);
+        }
+        if (w_rssi >= -67)
+        {
+            display.fillRect(rssi_icon_x + 12, rssi_icon_y + 4, 4, 8, SSD1306_WHITE);
+        }
+        if (w_rssi >= -45)
+        {
+            display.fillRect(rssi_icon_x + 17, rssi_icon_y + 2, 4, 10, SSD1306_WHITE);
+        }
+    }
+
+    display.setTextSize(1); // Normal 1:1 pixel scale
+    display.setCursor(rssi_icon_x + 23, rssi_icon_y);
+    display.println("RSSI: ");
+    display.setCursor(rssi_icon_x + 23, rssi_icon_y + 8);
+    display.print(w_rssi);
+    display.print("dbm");
+
+    // Battery Indicator
+    int bat_icon_x = 64;
+    int bat_icon_y = 0;
+
+    // draw icon outline
+    display.drawRect(bat_icon_x + 0, bat_icon_y + 2, 24, 10, SSD1306_WHITE);
+    display.fillRect(bat_icon_x + 24, bat_icon_y + 5, 2, 4, SSD1306_WHITE);
+
+    // fill battery icon according to battery voltage
+    display.fillRect(bat_icon_x + 0, bat_icon_y + 3, map(u_bat, 420, 520, 0, 23), 10, SSD1306_WHITE);
+
+    display.setTextSize(1); // Normal 1:1 pixel scale
+    display.setCursor(bat_icon_x + 28, rssi_icon_y);
+    display.println("Bat: ");
+    display.setCursor(bat_icon_x + 28, rssi_icon_y + 8);
+    display.print(float(u_bat) / 100);
+    display.print("V");
+
+    switch (state)
+    {
+    case STATE_CONNECTING_TO_WIFI:
+        display.setCursor(0, 8); // SecondLine of Yellow section
+        // display.write(0x13);     // !! icon
+        //  display.println("Reconnecting...");
+        if (WiFi.status() == WL_CONNECTED)
+        {
+            display.println("------------------------");
+            display.println("SSID: " + getSSID());
+            display.println("IP:   " + WiFi.localIP().toString());
+            display.println("Gateway: " + WiFi.gatewayIP().toString());
+        }
         else
-            display.write(i);
+        {
+            display.drawRect(10, 16, 108, 32, SSD1306_WHITE); // draw dialog box
+            display.setCursor(12, 18);                        // In the dialog box
+            display.println("Go to \n  \"192.168.4.1\"\n  for configuration");
+        }
+        break;
+
+    case STATE_CONNECTING_TO_SWITCHER:
+        // Initialize a connection to the switcher:
+        if (firstRun)
+        {
+            display.println("------------------------");
+            display.println("Connecting to switcher...");
+            display.println((String) "Switcher IP:         " + settings.switcherIP[0] + "." + settings.switcherIP[1] + "." + settings.switcherIP[2] + "." + settings.switcherIP[3]);
+        }
+        if (atemSwitcher.isConnected())
+        {
+            display.println("Connected to switcher");
+        }
+        break;
     }
 
     display.display();
-    delay(2000);
 }
