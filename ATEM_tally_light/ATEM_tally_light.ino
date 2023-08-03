@@ -1080,6 +1080,24 @@ void updateDisplay(void)
     display.print(float(u_bat) / 100);
     display.print("V");
 
+    // status
+    display.setTextSize(1); // Normal 1:1 pixel scale
+    display.setCursor(0, 16);
+    display.print("===- ");
+    display.write(0x2);
+    display.print(" Link UP ");
+    display.write(0x2);
+    display.print(" -===");
+    display.println();
+    display.write(0xAF);
+    display.println(": " + getSSID());
+    display.write(0x23);
+    display.println(": " + WiFi.localIP().toString());
+    display.write(0x17);
+    display.println(": " + WiFi.gatewayIP().toString());
+    display.write(0xE);
+    display.println((String) ": " + settings.switcherIP[0] + "." + settings.switcherIP[1] + "." + settings.switcherIP[2] + "." + settings.switcherIP[3]);
+    display.println("---------------------");
     switch (state)
     {
     case STATE_CONNECTING_TO_WIFI:
@@ -1088,10 +1106,7 @@ void updateDisplay(void)
         //  display.println("Reconnecting...");
         if (WiFi.status() == WL_CONNECTED)
         {
-            display.println("------------------------");
-            display.println("SSID: " + getSSID());
-            display.println("IP:   " + WiFi.localIP().toString());
-            display.println("Gateway: " + WiFi.gatewayIP().toString());
+            // do nothing
         }
         else
         {
