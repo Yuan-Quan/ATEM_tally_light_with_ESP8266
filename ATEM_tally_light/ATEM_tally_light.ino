@@ -104,6 +104,8 @@ CRGB color_led[8] = {CRGB::Black, CRGB::Red, CRGB::Lime, CRGB::Blue, CRGB::Yello
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT,
                          OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
 
+#define STATUS_DELAY 100
+
 // Define Neopixel status-LED options
 #define NEOPIXEL_STATUS_FIRST 1
 #define NEOPIXEL_STATUS_LAST 2
@@ -165,6 +167,9 @@ bool firstRun = true;
 //  bool lowLedOn = false;
 //  double uBatt = 0;
 //  char buffer[3];
+
+long intervalCounter = 0;
+int statusPage = 0;
 
 // Perform initial setup on power on
 void setup()
@@ -1080,24 +1085,73 @@ void updateDisplay(void)
     display.print(float(u_bat) / 100);
     display.print("V");
 
-    // status
-    display.setTextSize(1); // Normal 1:1 pixel scale
-    display.setCursor(0, 16);
-    display.print("===- ");
-    display.write(0x2);
-    display.print(" Link UP ");
-    display.write(0x2);
-    display.print(" -===");
-    display.println();
-    display.write(0xAF);
-    display.println(": " + getSSID());
-    display.write(0x23);
-    display.println(": " + WiFi.localIP().toString());
-    display.write(0x17);
-    display.println(": " + WiFi.gatewayIP().toString());
-    display.write(0xE);
-    display.println((String) ": " + settings.switcherIP[0] + "." + settings.switcherIP[1] + "." + settings.switcherIP[2] + "." + settings.switcherIP[3]);
-    display.println("---------------------");
+    if (statusPage == 0)
+    {
+        if (intervalCounter >= STATUS_DELAY)
+        {
+            statusPage = 1;
+            intervalCounter = 0;
+        }
+        intervalCounter++;
+        // status
+        display.setTextSize(1); // Normal 1:1 pixel scale
+        display.setCursor(0, 16);
+        display.print("===- ");
+        display.write(0x2);
+        display.print(" Link UP ");
+        display.write(0x2);
+        display.print(" -===");
+        display.println();
+        display.write(0xAF);
+        display.println(": " + getSSID());
+        display.write(0x23);
+        display.println(": " + WiFi.localIP().toString());
+        display.write(0x17);
+        display.println(": " + WiFi.gatewayIP().toString());
+        display.write(0xE);
+        display.println((String) ": " + settings.switcherIP[0] + "." + settings.switcherIP[1] + "." + settings.switcherIP[2] + "." + settings.switcherIP[3]);
+        display.println("---------------------");
+    }
+    else if (statusPage == 1)
+    {
+        intervalCounter++;
+        if (intervalCounter >= STATUS_DELAY)
+        {
+            statusPage = 0;
+            intervalCounter = 0;
+        }
+
+        // TallyNo
+        int no_icon_x = 0;
+        int no_icon_y = 18;
+        display.setTextSize(5);
+        display.setTextColor(SSD1306_BLACK);
+        display.fillRect(no_icon_x, no_icon_y, 35, 40, SSD1306_WHITE);
+        display.setCursor(no_icon_x + 6, no_icon_y + 3);
+        display.println(settings.tallyNo + 1);
+
+        display.setTextSize(1);
+        display.setTextColor(SSD1306_WHITE);
+        display.setCursor(40, 18);
+        display.println("Status:");
+        display.setCursor(40, 36);
+        display.setTextSize(2);
+        switch (getTallyState(settings.tallyNo))
+        {
+        case TALLY_FLAG_OFF:
+            display.println("STDBY");
+            break;
+        case TALLY_FLAG_PREVIEW:
+            display.println("PREVIEW");
+            break;
+        case TALLY_FLAG_PROGRAM:
+            display.println("PROGRAM");
+            break;
+        default:
+            break;
+        }
+    }
+
     switch (state)
     {
     case STATE_CONNECTING_TO_WIFI:
@@ -1110,19 +1164,36 @@ void updateDisplay(void)
         }
         else
         {
+            display.drawRect(9, 15, 110, 34, SSD1306_BLACK);  // draw dialog box
             display.drawRect(10, 16, 108, 32, SSD1306_WHITE); // draw dialog box
+            display.fillRect(11, 17, 106, 30, SSD1306_BLACK); // draw dialog box
             display.setCursor(12, 18);                        // In the dialog box
-            display.println("Go to \n  \"192.168.4.1\"\n  for configuration");
+            display.setTextSize(1);
+            display.setTextColor(SSD1306_WHITE);
+            if (statusPage == 0)
+            {
+                display.println("Connection Lost\n  Serving Wifi: \n  \"Tally Setup\"");
+            }
+            else
+            {
+
+                display.println("Go to \n  \"192.168.4.1\"\n  for configuration");
+            }
         }
         break;
 
     case STATE_CONNECTING_TO_SWITCHER:
         // Initialize a connection to the switcher:
+        display.drawRect(9, 15, 110, 34, SSD1306_BLACK);  // draw dialog box
+        display.drawRect(10, 16, 108, 32, SSD1306_WHITE); // draw dialog box
+        display.fillRect(11, 17, 106, 30, SSD1306_BLACK); // draw dialog box
+        display.setCursor(12, 18);                        // In the dialog box
+        display.setTextSize(1);
+        display.setTextColor(SSD1306_WHITE);
         if (firstRun)
         {
-            display.println("------------------------");
-            display.println("Connecting to switcher...");
-            display.println((String) "Switcher IP:         " + settings.switcherIP[0] + "." + settings.switcherIP[1] + "." + settings.switcherIP[2] + "." + settings.switcherIP[3]);
+            display.println("Connecting to ATEM...");
+            display.println((String) "Switcher IP:\n" + settings.switcherIP[0] + "." + settings.switcherIP[1] + "." + settings.switcherIP[2] + "." + settings.switcherIP[3]);
         }
         if (atemSwitcher.isConnected())
         {
