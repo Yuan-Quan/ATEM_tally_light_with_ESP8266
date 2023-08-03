@@ -43,8 +43,8 @@
 #if ESP32
 // Define LED1 color pins
 #define PIN_RED1 32
-#define PIN_GREEN1 33
-#define PIN_BLUE1 25
+#define PIN_GREEN1 25
+#define PIN_BLUE1 33
 
 // Define LED2 color pins
 #define PIN_RED2 26
@@ -1115,7 +1115,7 @@ void updateDisplay(void)
     else if (statusPage == 1)
     {
         intervalCounter++;
-        if (intervalCounter >= STATUS_DELAY)
+        if (intervalCounter >= 2 * STATUS_DELAY)
         {
             statusPage = 0;
             intervalCounter = 0;
