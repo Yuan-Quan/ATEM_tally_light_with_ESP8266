@@ -54,8 +54,8 @@
 #else
 // Define LED1 color pins
 #define PIN_RED1 D0
-#define PIN_GREEN1 D2
-#define PIN_BLUE1 D1
+#define PIN_GREEN1 D1
+#define PIN_BLUE1 D2
 
 // Define LED2 color pins
 #define PIN_RED2 D4
@@ -104,7 +104,7 @@ CRGB color_led[8] = {CRGB::Black, CRGB::Red, CRGB::Lime, CRGB::Blue, CRGB::Yello
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT,
                          OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
 
-#define STATUS_DELAY 100
+#define STATUS_DELAY 80
 
 // Define Neopixel status-LED options
 #define NEOPIXEL_STATUS_FIRST 1
@@ -168,8 +168,10 @@ bool firstRun = true;
 //  double uBatt = 0;
 //  char buffer[3];
 
-long intervalCounter = 0;
+long statusIntervalCounter = 0;
+long errorIntervalCounter = 0;
 int statusPage = 0;
+int errorsPage = 0;
 
 // Perform initial setup on power on
 void setup()
@@ -1076,7 +1078,7 @@ void updateDisplay(void)
     display.fillRect(bat_icon_x + 24, bat_icon_y + 5, 2, 4, SSD1306_WHITE);
 
     // fill battery icon according to battery voltage
-    display.fillRect(bat_icon_x + 0, bat_icon_y + 3, map(u_bat, 420, 520, 0, 23), 10, SSD1306_WHITE);
+    display.fillRect(bat_icon_x + 0, bat_icon_y + 3, map(u_bat, 420, 520, 0, 23), 9, SSD1306_WHITE);
 
     display.setTextSize(1); // Normal 1:1 pixel scale
     display.setCursor(bat_icon_x + 28, rssi_icon_y);
@@ -1087,12 +1089,12 @@ void updateDisplay(void)
 
     if (statusPage == 0)
     {
-        if (intervalCounter >= STATUS_DELAY)
+        if (statusIntervalCounter >= STATUS_DELAY)
         {
             statusPage = 1;
-            intervalCounter = 0;
+            statusIntervalCounter = 0;
         }
-        intervalCounter++;
+        statusIntervalCounter++;
         // status
         display.setTextSize(1); // Normal 1:1 pixel scale
         display.setCursor(0, 16);
@@ -1114,11 +1116,11 @@ void updateDisplay(void)
     }
     else if (statusPage == 1)
     {
-        intervalCounter++;
-        if (intervalCounter >= 2 * STATUS_DELAY)
+        statusIntervalCounter++;
+        if (statusIntervalCounter >= 4 * STATUS_DELAY)
         {
             statusPage = 0;
-            intervalCounter = 0;
+            statusIntervalCounter = 0;
         }
 
         // TallyNo
@@ -1170,12 +1172,25 @@ void updateDisplay(void)
             display.setCursor(12, 18);                        // In the dialog box
             display.setTextSize(1);
             display.setTextColor(SSD1306_WHITE);
-            if (statusPage == 0)
+            errorIntervalCounter++;
+            if (errorsPage == 0)
             {
+                if (errorIntervalCounter >= 100)
+                {
+                    errorIntervalCounter = 0;
+                    errorsPage = 1;
+                }
+
                 display.println("Connection Lost\n  Serving Wifi: \n  \"Tally Setup\"");
             }
             else
             {
+
+                if (errorIntervalCounter >= 100)
+                {
+                    errorIntervalCounter = 0;
+                    errorsPage = 0;
+                }
 
                 display.println("Go to \n  \"192.168.4.1\"\n  for configuration");
             }
@@ -1190,14 +1205,30 @@ void updateDisplay(void)
         display.setCursor(12, 18);                        // In the dialog box
         display.setTextSize(1);
         display.setTextColor(SSD1306_WHITE);
-        if (firstRun)
+        errorIntervalCounter++;
+        if (errorsPage == 0)
         {
-            display.println("Connecting to ATEM...");
-            display.println((String) "Switcher IP:\n" + settings.switcherIP[0] + "." + settings.switcherIP[1] + "." + settings.switcherIP[2] + "." + settings.switcherIP[3]);
+            if (errorIntervalCounter >= 100)
+            {
+                errorIntervalCounter = 0;
+                errorsPage = 1;
+            }
+
+            display.println("ATEM is down ;(");
+            display.println((String) "  Switcher IP:\n  " + settings.switcherIP[0] + "." + settings.switcherIP[1] + "." + settings.switcherIP[2] + "." + settings.switcherIP[3]);
         }
-        if (atemSwitcher.isConnected())
+        else
         {
-            display.println("Connected to switcher");
+
+            if (errorIntervalCounter >= 100)
+            {
+                errorIntervalCounter = 0;
+                errorsPage = 0;
+            }
+
+            display.println("Go to");
+            display.println("  " + WiFi.localIP().toString());
+            display.println("  for configuration");
         }
         break;
     }
